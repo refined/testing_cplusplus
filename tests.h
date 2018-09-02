@@ -81,7 +81,8 @@ inline void run_test_from_text(MethodT& method, string&& filename) {
 			method(file_stream, out_stream);
 			string result = out_stream.str();
 			string expected;
-			file_stream >> expected;
+			file_stream.ignore();
+			getline(file_stream, expected);
 			check_test(expected, result);
 
 			cout << "duration " << (clock() - start) / (double)CLOCKS_PER_SEC << " sec" << endl;
