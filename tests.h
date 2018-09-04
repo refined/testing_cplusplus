@@ -63,6 +63,25 @@ inline void run_test(ExpectedT&& expected, MethodT& method, InT&& ...in_args) {
 	cout << "duration " << (clock() - start) / (double)CLOCKS_PER_SEC << " sec" << endl;
 }
 
+inline void trim_end(string& str)
+{
+	int end = str.find(" \n");
+	while (end != string::npos)
+	{
+		str.erase(end, 1);
+		end = str.find(" \n");
+	}
+}
+
+
+inline void clearify(string& expected, string& result)
+{
+	trim_end(expected);
+	trim_end(result);
+
+	if (*expected.rbegin() == '\n') expected.erase(expected.size() - 1, 1);
+	if (*result.rbegin() == '\n') result.erase(result.size() - 1, 1);
+}
 
 template <typename MethodT>
 inline void run_test_from_text(MethodT& method, string&& filename) {
@@ -81,8 +100,22 @@ inline void run_test_from_text(MethodT& method, string&& filename) {
 			method(file_stream, out_stream);
 			string result = out_stream.str();
 			string expected;
-			file_stream.ignore();
-			getline(file_stream, expected);
+			string line;
+			do
+			{
+				getline(file_stream, line);
+			} while (line.empty() && !file_stream.eof());
+
+			do 
+			{
+				expected += line + " \n";
+				if (file_stream.eof())
+					break;
+				getline(file_stream, line);
+			} while (!line.empty());
+			
+			clearify(expected, result);
+
 			check_test(expected, result);
 
 			cout << "duration " << (clock() - start) / (double)CLOCKS_PER_SEC << " sec" << endl;
