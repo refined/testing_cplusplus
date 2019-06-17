@@ -6,12 +6,13 @@
 #include <cstdlib> // atoi
 #include <type_traits>
 #include <fstream>
+#include <windows.h> 
 
 using namespace std;
 
 namespace tests {
 	template <typename T>
-	inline void packed_args_to_string(T& arg) {
+	void packed_args_to_string(T& arg) {
 		try
 		{
 			cout << arg << endl;
@@ -23,29 +24,50 @@ namespace tests {
 	}
 
 	template <typename T, typename ...MoreT>
-	inline void packed_args_to_string(T& arg, MoreT& ...args) {
+	void packed_args_to_string(T& arg, MoreT& ...args) {
 		cout << arg << endl;
 		packed_args_to_string(args...);
 	}
 
 
 	template <typename T>
-	inline bool check_test(T expected, T result) {
+	bool out_assert_test(T expected, T result) {
 		if (result == expected) {
 			cout << "\nsuccess: ";
 			return true;
 		}
+		cout << "\nfail: " << "result\n";
+		cout << result << "\nexpected \n" << expected << "\n";
+		return false;
+	}
+
+	template <typename T>
+	bool out_assert_test_colored(T expected, T result) {
+		HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+		if (result == expected) {
+			SetConsoleTextAttribute(hConsole, 2);
+			cout << "\nsuccess: ";
+			SetConsoleTextAttribute(hConsole, 15);
+			return true;
+		}
+		SetConsoleTextAttribute(hConsole, 4);
 		cout << "\nfail: ";
-		cout << "result\n" << result << "\nexpected \n" << expected << "\n";
+		SetConsoleTextAttribute(hConsole, 2);
+		cout << "result\n";
+		SetConsoleTextAttribute(hConsole, 15);
+		cout << result;
+		SetConsoleTextAttribute(hConsole, 2);
+		cout << "\nexpected \n";
+		SetConsoleTextAttribute(hConsole, 15);
+		cout << expected << "\n";
 		return false;
 	}
 
 	template <typename ExpectedT, typename MethodT, typename ...InT>
-	inline void run_test(ExpectedT& expected, MethodT& method, InT& ...in_args) {
-		//cout << "test " << endl;
-
+	void run_test(ExpectedT& expected, MethodT& method, InT& ...in_args) {
 		clock_t start = clock();
-		if (!check_test(expected, method(in_args...)))
+		if (!out_assert_test(expected, method(in_args...)))
 		{
 			packed_args_to_string(in_args...);
 		}
@@ -53,11 +75,9 @@ namespace tests {
 	}
 
 	template <typename ExpectedT, typename MethodT, typename ...InT>
-	inline void run_test(ExpectedT&& expected, MethodT& method, InT&& ...in_args) {
-		//cout << "test " << endl;
-
+	void run_test(ExpectedT&& expected, MethodT& method, InT&& ...in_args) {
 		clock_t start = clock();
-		if (!check_test(expected, method(in_args...)))
+		if (!out_assert_test(expected, method(in_args...)))
 		{
 			packed_args_to_string(in_args...);
 		}
@@ -84,10 +104,15 @@ namespace tests {
 	}
 
 	template <typename MethodT>
-	inline bool run_test_from_text(MethodT& method, string&& filename) {
-		ifstream file_stream(filename);
+	bool run_test_from_text(MethodT& method, string&& filename, bool colored = false) {
+		ifstream file_stream(filename.c_str());
 		int test_num = 1;
 		bool res = false;
+		if (!file_stream.good())
+		{
+			cout << "cant find file: " + filename;
+			return res;
+		}
 
 		try
 		{
@@ -116,14 +141,15 @@ namespace tests {
 				} while (!line.empty());
 
 				clearify(expected, result);
-
-				res = check_test(expected, result);
+				if (colored)
+					res = out_assert_test_colored(expected, result);
+				else
+					res = out_assert_test(expected, result);
 
 				cout << "duration " << (clock() - start) / (double)CLOCKS_PER_SEC << " sec" << endl << endl;
 			}
 
 			file_stream.close();
-			return res;
 		}
 		catch (...)
 		{
@@ -133,7 +159,7 @@ namespace tests {
 	}
 
 	template <typename MethodT>
-	inline void run_from_text(MethodT& method, string&& filename, string&& outfilename) {
+	void run_from_text(MethodT& method, string&& filename, string&& outfilename) {
 		ifstream file_stream(filename);
 		ofstream out_stream(outfilename, std::ofstream::out | std::ofstream::trunc);
 		try
